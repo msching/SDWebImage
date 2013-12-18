@@ -15,6 +15,7 @@ NSString *const SDWebImageDownloadStopNotification = @"SDWebImageDownloadStopNot
 
 static NSString *const kProgressCallbackKey = @"progress";
 static NSString *const kCompletedCallbackKey = @"completed";
+static NSString *const localServerAddr = @"127.0.0.1";
 
 @interface SDWebImageDownloader ()
 
@@ -122,7 +123,22 @@ static NSString *const kCompletedCallbackKey = @"completed";
     [self addProgressCallback:progressBlock andCompletedBlock:completedBlock forURL:url createCallback:^
     {
         // In order to prevent from potential duplicate caching (NSURLCache + SDImageCache) we disable the cache for image requests if told otherwise
-        NSMutableURLRequest *request = [NSMutableURLRequest.alloc initWithURL:url cachePolicy:(options & SDWebImageDownloaderUseNSURLCache ? NSURLRequestUseProtocolCachePolicy : NSURLRequestReloadIgnoringLocalCacheData) timeoutInterval:15];
+        NSLog(@"%@\n%@\n",url.host,url.path);
+        
+        NSURL *downloadUrl = nil;
+        if (wself.forwardByLocalServer)
+        {
+            NSMutableString *urlString = [url.absoluteString mutableCopy];
+            NSRange hostRange = [urlString rangeOfString:url.host];
+            [urlString replaceCharactersInRange:hostRange withString:localServerAddr];
+            downloadUrl = [NSURL URLWithString:urlString];
+        }
+        else
+        {
+            downloadUrl = url;
+        }
+        
+        NSMutableURLRequest *request = [NSMutableURLRequest.alloc initWithURL:downloadUrl cachePolicy:(options & SDWebImageDownloaderUseNSURLCache ? NSURLRequestUseProtocolCachePolicy : NSURLRequestReloadIgnoringLocalCacheData) timeoutInterval:15];
         request.HTTPShouldHandleCookies = (options & SDWebImageDownloaderHandleCookies);
         request.HTTPShouldUsePipelining = YES;
         if (wself.headersFilter)
