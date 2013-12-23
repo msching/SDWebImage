@@ -67,6 +67,50 @@ static char operationKey;
     }
 }
 
+/**
+ * <NTES DIY SDWebImage>
+ * UIButton增加离线保存图片
+ */
+- (void)setImageWithURL:(NSURL *)url forState:(UIControlState)state placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options completed:(SDWebImageCompletedBlock)completedBlock isEternal:(BOOL)isEternal
+{
+    if(!isEternal)
+    {
+        [self setImageWithURL:url forState:state placeholderImage:placeholder options:options completed:completedBlock];
+        return;
+    }
+    
+    [self cancelCurrentImageLoad];
+    
+    [self setImage:placeholder forState:state];
+    
+    if (url)
+    {
+        __weak UIButton *wself = self;
+        id<SDWebImageOperation> operation = [SDWebImageManager.sharedManager downloadWithURL:url
+                                                                                     options:options
+                                                                                    progress:nil
+                                                                                   completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, BOOL finished)
+                                             {
+                                                 if (!wself) return;
+                                                 dispatch_main_sync_safe(^
+                                                                         {
+                                                                             __strong UIButton *sself = wself;
+                                                                             if (!sself) return;
+                                                                             if (image)
+                                                                             {
+                                                                                 [sself setImage:image forState:state];
+                                                                             }
+                                                                             if (completedBlock && finished)
+                                                                             {
+                                                                                 completedBlock(image, error, cacheType);
+                                                                             }
+                                                                         });
+                                             } isEternal:YES];//<NTES DIY SDWebImage>
+        objc_setAssociatedObject(self, &operationKey, operation, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    
+}
+
 - (void)setBackgroundImageWithURL:(NSURL *)url forState:(UIControlState)state
 {
     [self setBackgroundImageWithURL:url forState:state placeholderImage:nil options:0 completed:nil];
@@ -118,6 +162,46 @@ static char operationKey;
                 }
             });
         }];
+        objc_setAssociatedObject(self, &operationKey, operation, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+}
+
+/**
+ * <NTES DIY SDWebImage>
+ * UIButton增加离线保存背景图片
+ */
+- (void)setBackgroundImageWithURL:(NSURL *)url forState:(UIControlState)state placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options completed:(SDWebImageCompletedBlock)completedBlock isEternal:(BOOL)isEternal
+{
+    if(!isEternal)
+    {
+        [self setBackgroundImageWithURL:url forState:state placeholderImage:placeholder options:options completed:completedBlock];
+        return;
+    }
+    
+    [self cancelCurrentImageLoad];
+    
+    [self setBackgroundImage:placeholder forState:state];
+    
+    if (url)
+    {
+        __weak UIButton *wself = self;
+        id<SDWebImageOperation> operation = [SDWebImageManager.sharedManager downloadWithURL:url options:options progress:nil completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, BOOL finished)
+                                             {
+                                                 if (!wself) return;
+                                                 dispatch_main_sync_safe(^
+                                                                         {
+                                                                             __strong UIButton *sself = wself;
+                                                                             if (!sself) return;
+                                                                             if (image)
+                                                                             {
+                                                                                 [sself setBackgroundImage:image forState:state];
+                                                                             }
+                                                                             if (completedBlock && finished)
+                                                                             {
+                                                                                 completedBlock(image, error, cacheType);
+                                                                             }
+                                                                         });
+                                             } isEternal:YES];//<NTES DIY SDWebImage>
         objc_setAssociatedObject(self, &operationKey, operation, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
 }

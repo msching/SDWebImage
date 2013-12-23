@@ -72,7 +72,20 @@
     return [self.imageCache diskImageExistsWithKey:key];
 }
 
+
+
+/**
+ * <NTES DIY SDWebImage> （改动原方法）
+ */
 - (id<SDWebImageOperation>)downloadWithURL:(NSURL *)url options:(SDWebImageOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(SDWebImageCompletedWithFinishedBlock)completedBlock
+{
+    return [self downloadWithURL:url options:options progress:progressBlock completed:completedBlock isEternal:NO];
+}
+
+/** <NTES DIY SDWebImage>
+ * 下载图片到离线目录
+ */
+- (id<SDWebImageOperation>)downloadWithURL:(NSURL *)url options:(SDWebImageOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(SDWebImageCompletedWithFinishedBlock)completedBlock isEternal:(BOOL)isEternal
 {    
     // Invoking this method without a completedBlock is pointless
     NSParameterAssert(completedBlock);
@@ -200,8 +213,9 @@
 
                             if (transformedImage && finished)
                             {
+                                //<NTES DIY SDWebImage>
                                 BOOL imageWasTransformed = ![transformedImage isEqual:downloadedImage];
-                                [self.imageCache storeImage:transformedImage recalculateFromImage:imageWasTransformed imageData:data forKey:key toDisk:cacheOnDisk];
+                                [self.imageCache storeImage:transformedImage recalculateFromImage:imageWasTransformed imageData:data forKey:key toDisk:cacheOnDisk isEternal:isEternal];
                             }
                         });
                     }
@@ -214,7 +228,8 @@
 
                         if (downloadedImage && finished)
                         {
-                            [self.imageCache storeImage:downloadedImage recalculateFromImage:NO imageData:data forKey:key toDisk:cacheOnDisk];
+                            //<NTES DIY SDWebImage>
+                            [self.imageCache storeImage:downloadedImage recalculateFromImage:NO imageData:data forKey:key toDisk:cacheOnDisk isEternal:isEternal];
                         }
                     }
                 }
@@ -231,6 +246,23 @@
         }
         else if (image)
         {
+            //<NTES DIY SDWebImage>
+            //【缓存里已有的图片未保存到离线目录里的问题】可能1:离线图片时图片已在缓存与内存中；可能2:离线图片时图片仅在内存中但不在缓存中
+            //【离线图片如果下载失败，增加恢复机制，需要外部支持，如播放页面加载下载歌曲图片时显示声明图片需要离线】
+            if(isEternal)
+            {
+                NSString *cachePath = [self.imageCache defaultCachePathForKey:key];
+                NSString *eternalPath = [self.imageCache eternalCachePathForKey:key];
+                if(![[NSFileManager defaultManager] fileExistsAtPath:eternalPath] && ![[NSFileManager defaultManager] fileExistsAtPath:cachePath])
+                {
+                    [self.imageCache storeImage:image forKey:key isEternal:YES];
+                }
+                else if(![[NSFileManager defaultManager] fileExistsAtPath:eternalPath] && [[NSFileManager defaultManager] fileExistsAtPath:cachePath])
+                {
+                    [[NSFileManager defaultManager] moveItemAtPath:cachePath toPath:eternalPath error:nil];
+                }
+            }
+            
             dispatch_main_sync_safe(^
             {
                 completedBlock(image, nil, cacheType, YES);

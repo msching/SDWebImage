@@ -134,6 +134,13 @@
  */
 - (void)setImageWithURL:(NSURL *)url placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(SDWebImageCompletedBlock)completedBlock;
 
+
+/**
+ * <NTES DIY SDWebImage>
+ * UIImageView增加离线保存图片
+ */
+- (void)setImageWithURL:(NSURL *)url placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(SDWebImageCompletedBlock)completedBlock isEternal:(BOOL)isEternal;
+
 /**
  * Download an array of images and starts them in an animation loop
  *

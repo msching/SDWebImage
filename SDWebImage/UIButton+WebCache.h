@@ -94,6 +94,12 @@
 - (void)setImageWithURL:(NSURL *)url forState:(UIControlState)state placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options completed:(SDWebImageCompletedBlock)completedBlock;
 
 /**
+ * <NTES DIY SDWebImage>
+ * UIButton增加离线保存图片
+ */
+- (void)setImageWithURL:(NSURL *)url forState:(UIControlState)state placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options completed:(SDWebImageCompletedBlock)completedBlock isEternal:(BOOL)isEternal;
+
+/**
  * Set the backgroundImageView `image` with an `url`.
  *
  * The downloand is asynchronous and cached.
@@ -170,6 +176,12 @@
  *   `SDImageCacheType` enum describing the source of the image obtained from.
  */
 - (void)setBackgroundImageWithURL:(NSURL *)url forState:(UIControlState)state placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options completed:(SDWebImageCompletedBlock)completedBlock;
+
+/**
+ * <NTES DIY SDWebImage>
+ * UIButton增加离线保存背景图片
+ */
+- (void)setBackgroundImageWithURL:(NSURL *)url forState:(UIControlState)state placeholderImage:(UIImage *)placeholder options:(SDWebImageOptions)options completed:(SDWebImageCompletedBlock)completedBlock isEternal:(BOOL)isEternal;
 
 /**
  * Cancel the current download

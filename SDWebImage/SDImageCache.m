@@ -13,6 +13,12 @@
 #import <mach/mach.h>
 #import <mach/mach_host.h>
 
+//<NTES DIY SDWebImage>
+#ifndef kAppRootDirectory
+#define kAppRootDirectory @"UserData" //set up for application data root dir
+#endif
+#define NEW_ETERNAL_CACHE_DIR_NAME @"ImageStorage"
+
 static const NSInteger kDefaultCacheMaxCacheAge = 60 * 60 * 24 * 7; // 1 week
 // PNG signature bytes and data (below)
 static unsigned char kPNGSignatureBytes[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
@@ -39,6 +45,9 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
 @property (strong, nonatomic) NSString *diskCachePath;
 @property (strong, nonatomic) NSMutableArray *customPaths;
 @property (SDDispatchQueueSetterSementics, nonatomic) dispatch_queue_t ioQueue;
+
+//<NTES DIY SDWebImage>
+@property (strong, nonatomic) NSString *eternalDiskCachePath;
 
 @end
 
@@ -82,9 +91,15 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
         _memCache.name = fullNamespace;
 
         // Init the disk cache
-        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
-        _diskCachePath = [paths[0] stringByAppendingPathComponent:fullNamespace];
-
+//        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
+//        _diskCachePath = [paths[0] stringByAppendingPathComponent:fullNamespace];
+        
+        //<NTES DIY SDWebImage> init the disk cache
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+        NSString *rootDir = [paths[0] stringByAppendingPathComponent:kAppRootDirectory];
+        _diskCachePath = [rootDir stringByAppendingPathComponent:fullNamespace];
+        _eternalDiskCachePath = [rootDir stringByAppendingPathComponent:NEW_ETERNAL_CACHE_DIR_NAME];
+        
         dispatch_sync(_ioQueue, ^
         {
             _fileManager = NSFileManager.new;
@@ -142,6 +157,12 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
 - (NSString *)defaultCachePathForKey:(NSString *)key
 {
     return [self cachePathForKey:key inPath:self.diskCachePath];
+}
+
+//<NTES DIY SDWebImage> 离线图片的文件路径
+- (NSString *)eternalCachePathForKey:(NSString *)key
+{
+    return [self cachePathForKey:key inPath:self.eternalDiskCachePath];
 }
 
 - (NSString *)cachedFileNameForKey:(NSString *)key
@@ -223,9 +244,89 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
     }
 }
 
+/**
+ 不改原始方法-->
+ - (void)storeImage:(UIImage *)image recalculateFromImage:(BOOL)recalculate imageData:(NSData *)imageData forKey:(NSString *)key toDisk:(BOOL)toDisk 
+ 
+ */
+//<NTES DIY SDWebImage>（新增方法）
+- (void)storeImage:(UIImage *)image recalculateFromImage:(BOOL)recalculate imageData:(NSData *)imageData forKey:(NSString *)key toDisk:(BOOL)toDisk isEternal:(BOOL)isEternal
+{
+    if(!isEternal)
+    {
+        [self storeImage:image recalculateFromImage:recalculate imageData:imageData forKey:key toDisk:toDisk];
+        return;
+    }
+    
+    if (!image || !key)
+    {
+        return;
+    }
+    
+    [self.memCache setObject:image forKey:key cost:image.size.height * image.size.width * image.scale];
+    
+    if (toDisk)
+    {
+        dispatch_async(self.ioQueue, ^
+                       {
+                           NSData *data = imageData;
+                           
+                           if (image && (recalculate || !data))
+                           {
+#if TARGET_OS_IPHONE
+                               // We need to determine if the image is a PNG or a JPEG
+                               // PNGs are easier to detect because they have a unique signature (http://www.w3.org/TR/PNG-Structure.html)
+                               // The first eight bytes of a PNG file always contain the following (decimal) values:
+                               // 137 80 78 71 13 10 26 10
+                               
+                               // We assume the image is PNG, in case the imageData is nil (i.e. if trying to save a UIImage directly),
+                               // we will consider it PNG to avoid loosing the transparency
+                               BOOL imageIsPng = YES;
+                               
+                               // But if we have an image data, we will look at the preffix
+                               if ([imageData length] >= [kPNGSignatureData length])
+                               {
+                                   imageIsPng = ImageDataHasPNGPreffix(imageData);
+                               }
+                               
+                               if (imageIsPng)
+                               {
+                                   data = UIImagePNGRepresentation(image);
+                               }
+                               else
+                               {
+                                   data = UIImageJPEGRepresentation(image, (CGFloat)1.0);
+                               }
+#else
+                               data = [NSBitmapImageRep representationOfImageRepsInArray:image.representations usingType: NSJPEGFileType properties:nil];
+#endif
+                           }
+                           
+                           if (data)
+                           {
+                               // Can't use defaultManager another thread
+                               NSFileManager *fileManager = NSFileManager.new;
+                               
+                               if (![fileManager fileExistsAtPath:_eternalDiskCachePath]) //离线目录
+                               {
+                                   [fileManager createDirectoryAtPath:_eternalDiskCachePath withIntermediateDirectories:YES attributes:nil error:NULL];
+                               }
+                               
+                               [fileManager createFileAtPath:[self eternalCachePathForKey:key] contents:data attributes:nil];
+                           }
+                       });
+    }
+}
+
 - (void)storeImage:(UIImage *)image forKey:(NSString *)key
 {
     [self storeImage:image recalculateFromImage:YES imageData:nil forKey:key toDisk:YES];
+}
+
+//<NTES DIY SDWebImage>（新增方法）
+- (void)storeImage:(UIImage *)image forKey:(NSString *)key isEternal:(BOOL)isEternal
+{
+    [self storeImage:image recalculateFromImage:YES imageData:nil forKey:key toDisk:YES isEternal:isEternal];
 }
 
 - (void)storeImage:(UIImage *)image forKey:(NSString *)key toDisk:(BOOL)toDisk
@@ -233,12 +334,18 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
     [self storeImage:image recalculateFromImage:YES imageData:nil forKey:key toDisk:toDisk];
 }
 
+//<NTES DIY SDWebImage>（改动原始方法）
 - (BOOL)diskImageExistsWithKey:(NSString *)key
 {
     __block BOOL exists = NO;
     dispatch_sync(_ioQueue, ^
     {
         exists = [_fileManager fileExistsAtPath:[self defaultCachePathForKey:key]];
+        //<NTES DIY SDWebImage>默认路径找不到，去离线目录找一次
+        if(!exists)
+        {
+            exists = [_fileManager fileExistsAtPath:[self eternalCachePathForKey:key]];
+        }
     });
 
     return exists;
@@ -269,6 +376,7 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
     return diskImage;
 }
 
+//<NTES DIY SDWebImage>(改动原始方法）
 - (NSData *)diskImageDataBySearchingAllPathsForKey:(NSString *)key
 {
     NSString *defaultPath = [self defaultCachePathForKey:key];
@@ -276,6 +384,14 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
     if (data)
     {
         return data;
+    }
+    
+    //<NTES DIY SDWebImage> 查找离线目录
+    NSString *eternalPath = [self eternalCachePathForKey:key];
+    NSData *eternalData = [NSData dataWithContentsOfFile:eternalPath];
+    if (eternalData)
+    {
+        return eternalData;
     }
 
     for (NSString *path in self.customPaths)
@@ -378,6 +494,25 @@ BOOL ImageDataHasPNGPreffix(NSData *data)
             [[NSFileManager defaultManager] removeItemAtPath:[self defaultCachePathForKey:key] error:nil];
         });
     }
+}
+
+/**
+ * 从离线目录删除图片
+ */
+//<NTES DIY SDWebImage>(新增方法)
+- (void)removeImageFromEternalDisk:(NSString*)key
+{
+    if (key == nil)
+    {
+        return;
+    }
+    
+    [self.memCache removeObjectForKey:key];
+    
+    dispatch_async(self.ioQueue, ^
+                   {
+                       [[NSFileManager defaultManager] removeItemAtPath:[self eternalCachePathForKey:key] error:nil];
+                   });
 }
 
 - (void)setMaxMemoryCost:(NSUInteger)maxMemoryCost

@@ -78,6 +78,13 @@ typedef enum SDImageCacheType SDImageCacheType;
 - (void)storeImage:(UIImage *)image forKey:(NSString *)key;
 
 /**
+ * <NTES DIY SDWebImage>
+ * Store the image to an eternal folder unless user want to clean it.
+ * Used for offline image in download manager
+ */
+- (void)storeImage:(UIImage *)image forKey:(NSString *)key isEternal:(BOOL)isEternal;
+
+/**
  * Store an image into memory and optionally disk cache at the given key.
  *
  * @param image The image to store
@@ -98,6 +105,11 @@ typedef enum SDImageCacheType SDImageCacheType;
  * @param toDisk Store the image to disk cache if YES
  */
 - (void)storeImage:(UIImage *)image recalculateFromImage:(BOOL)recalculate imageData:(NSData *)imageData forKey:(NSString *)key toDisk:(BOOL)toDisk;
+
+/**
+ * <NTES DIY SDWebImage>
+ */
+- (void)storeImage:(UIImage *)image recalculateFromImage:(BOOL)recalculate imageData:(NSData *)imageData forKey:(NSString *)key toDisk:(BOOL)toDisk isEternal:(BOOL)isEternal;
 
 /**
  * Query the disk cache asynchronously.
@@ -126,6 +138,12 @@ typedef enum SDImageCacheType SDImageCacheType;
  * @param key The unique image cache key
  */
 - (void)removeImageForKey:(NSString *)key;
+
+/**
+ * <NTES DIY SDWebImage>
+ * 删除离线目录里的图片（非缓存目录）
+ */
+- (void)removeImageFromEternalDisk:(NSString*)key;
 
 /**
  * Remove the image from memory and optionaly disk cache synchronously
@@ -169,5 +187,9 @@ typedef enum SDImageCacheType SDImageCacheType;
  * Check if image exists in cache already
  */
 - (BOOL)diskImageExistsWithKey:(NSString *)key;
+
+//<NTES DIY SDWebImage> make interface public
+- (NSString *)defaultCachePathForKey:(NSString *)key;
+- (NSString *)eternalCachePathForKey:(NSString *)key;
 
 @end

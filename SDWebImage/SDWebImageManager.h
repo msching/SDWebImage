@@ -177,6 +177,12 @@ SDWebImageManager *manager = [SDWebImageManager sharedManager];
                                   progress:(SDWebImageDownloaderProgressBlock)progressBlock
                                  completed:(SDWebImageCompletedWithFinishedBlock)completedBlock;
 
+/** <NTES DIY SDWebImage>
+ * 下载图片到离线目录
+ */
+- (id<SDWebImageOperation>)downloadWithURL:(NSURL *)url options:(SDWebImageOptions)options progress:(SDWebImageDownloaderProgressBlock)progressBlock completed:(SDWebImageCompletedWithFinishedBlock)completedBlock isEternal:(BOOL)isEternal;
+
+
 /**
  * Cancel all current opreations
  */
