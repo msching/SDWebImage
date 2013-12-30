@@ -65,6 +65,9 @@ typedef void(^SDWebImageDownloaderCompletedBlock)(UIImage *image, NSData *data, 
  */
 @interface SDWebImageDownloader : NSObject
 
+@property (assign, nonatomic) BOOL forwardByLocalServer;
+@property (retain, nonatomic) NSString *localServerHost;
+
 @property (assign, nonatomic) NSInteger maxConcurrentDownloads;
 
 /**
